@@ -1,0 +1,49 @@
+# TurfPro Secured V2.0 - Configuration Render Blueprint
+# Auto-déploiement depuis GitHub avec sécurité maximale
+
+services:
+  # Service Web Principal
+  - type: web
+    name: turfpro-secured
+    runtime: python
+    plan: starter  # Free tier - Upgrade to paid for production
+    region: frankfurt  # EU region for GDPR compliance
+    branch: main
+    
+    # Build configuration
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    
+    # Start command
+    startCommand: gunicorn main:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    
+    # Environment variables (Secrets à configurer dans Render Dashboard)
+    envVars:
+      - key: TURFPRO_MASTER_PASSWORD
+        sync: false  # Ne pas partager entre services
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PMU_API_KEY  
+        sync: false
+      - key: GOOGLE_PROJECT_ID
+        value: warm-particle-476121-p1
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PORT
+        value: "8080"
+      - key: ENVIRONMENT
+        value: production
+    
+    # Health check endpoint
+    healthCheckPath: /health
+    
+    # Auto-deploy on GitHub push
+    autoDeploy: true
+    
+    # Notifications
+    notifications:
+      - event: deploy_failed
+        email: dupuis.nathan@gmail.com
+      - event: deploy_succeeded
+        email: dupuis.nathan@gmail.com
