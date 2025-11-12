@@ -205,3 +205,60 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+
+# ============================================
+# TurfPro Secured V2.0 - Security Files
+# ============================================
+
+# Environment files with secrets
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Encrypted credentials storage
+*.encrypted
+*.enc
+secrets/
+credentials/
+keys/
+
+# Service account keys
+*-service-account*.json
+service-account-key*.json
+*-credentials.json
+
+# Master password files
+master_password.txt
+*.password
+*.secret
+
+# Audit logs with sensitive data
+audit_logs/
+logs/*.log
+*.audit
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+db.sqlite3
+
+# Backup files
+*.backup
+*.bak
+*.old
+
+# Temporary files
+.tmp/
+temp/
+*.tmp
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
