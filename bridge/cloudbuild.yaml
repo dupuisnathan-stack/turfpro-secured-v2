@@ -1,0 +1,28 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'europe-west1-docker.pkg.dev/turfo-service/turfpro-repo/bridge-api:$SHORT_SHA', '-t', 'europe-west1-docker.pkg.dev/turfo-service/turfpro-repo/bridge-api:latest', './bridge']
+  
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '--all-tags', 'europe-west1-docker.pkg.dev/turfo-service/turfpro-repo/bridge-api']
+  
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'bridge-api'
+      - '--image=europe-west1-docker.pkg.dev/turfo-service/turfpro-repo/bridge-api:$SHORT_SHA'
+      - '--region=europe-west1'
+      - '--platform=managed'
+      - '--memory=256Mi'
+      - '--cpu=1'
+      - '--concurrency=4'
+      - '--timeout=30s'
+      - '--min-instances=0'
+      - '--max-instances=10'
+      - '--port=8080'
+      - '--service-account=bridge-api-sa@turfo-service.iam.gserviceaccount.com'
+      - '--set-secrets=HMAC_SECRET=bridge-hmac-key:latest'
+      - '--allow-unauthenticated'
+
+timeout: '600s'
