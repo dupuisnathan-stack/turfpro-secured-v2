@@ -28,4 +28,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 EXPOSE 8080
 
 # Commande de démarrage avec Gunicorn
-CMD exec gunicorn --bind :$PORT --workers 1 --threads 2 --timeout 30 app:app
+CMD exec gunicorn --bind :$PORT --workers 1 --timeout 15 --graceful-timeout 5 app:app
