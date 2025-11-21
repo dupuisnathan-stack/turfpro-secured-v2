@@ -93,6 +93,88 @@ def root():
         "endpoints": ["/health", "/test-basic", "/test-render", "/engine"]
     }), 200
 
+@app.route('/openapi.json', methods=['GET'])
+def openapi():
+    """OpenAPI specification pour ChatGPT Actions"""
+    return jsonify({
+        "openapi": "3.1.0",
+        "info": {
+            "title": "TurfPro Bridge API",
+            "version": "1.0.0",
+            "description": "Interface OpenAPI pour workflows TurfPro via Cloud Run + Render"
+        },
+        "servers": [
+            {"url": "https://bridge-api-49503293887.europe-west1.run.app", "description": "Production"}
+        ],
+        "paths": {
+            "/health": {
+                "get": {
+                    "summary": "Health Check",
+                    "operationId": "healthCheck",
+                    "responses": {"200": {"description": "OK"}}
+                }
+            },
+            "/test-basic": {
+                "get": {
+                    "summary": "Test Bridge",
+                    "operationId": "testBasic",
+                    "responses": {"200": {"description": "OK"}}
+                }
+            },
+            "/test-render": {
+                "get": {
+                    "summary": "Test Render + Circuit Breaker",
+                    "operationId": "testRender",
+                    "responses": {"200": {"description": "OK"}, "500": {"description": "Error"}}
+                }
+            },
+            "/engine": {
+                "post": {
+                    "summary": "Execute Workflow (HMAC)",
+                    "operationId": "executeEngine",
+                    "security": [{"hmacAuth": []}],
+                    "requestBody": {
+                        "required": true,
+                        "content": {"application/json": {"schema": {"type": "object"}}}
+                    },
+                    "responses": {
+                        "200": {"description": "Success"},
+                        "401": {"description": "Invalid HMAC"},
+                        "502": {"description": "Backend Error"}
+                    }
+                }
+            }
+        },
+        "components": {
+            "securitySchemes": {
+                "hmacAuth": {
+                    "type": "apiKey",
+                    "in": "header",
+                    "name": "X-HMAC-Signature"
+                }
+            }
+        }
+    }), 200
+
+@app.route('/manifest.json', methods=['GET'])
+def manifest():
+    """Manifest ChatGPT Actions"""
+    return jsonify({
+        "schema_version": "v1",
+        "name_for_human": "TurfPro Bridge Controller",
+        "name_for_model": "turfpro_bridge",
+        "description_for_human": "Contrôle infrastructure TurfPro (Cloud Run, Render, GCP) via workflows JSON automatiques",
+        "description_for_model": "API pour workflows JSON TurfPro: déploiement, monitoring, correction auto. HMAC sur /engine.",
+        "auth": {"type": "none"},
+        "api": {
+            "type": "openapi",
+            "url": "https://bridge-api-49503293887.europe-west1.run.app/openapi.json"
+        },
+        "logo_url": "https://raw.githubusercontent.com/dupuisnathan-stack/turfpro-secured-v2/main/logo.png",
+        "contact_email": "dupuis.nathan@gmail.com",
+        "legal_info_url": "https://github.com/dupuisnathan-stack/turfpro-secured-v2"
+    }), 200
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
