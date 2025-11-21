@@ -13,11 +13,13 @@ import requests
 
 app = Flask(__name__)
 
+# Configuration Flask
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB max
+
 # Configuration
 RENDER_BACKEND_URL = "https://turfpro-secured-v2-1.onrender.com"
 HMAC_SECRET = os.getenv("HMAC_SECRET", "").encode()
-TIMEOUT = 25  # Timeout pour appels Render
-
+TIMEOUT = 3  # Timeout pour appels Render
 def verify_hmac(data: str, signature: str) -> bool:
     """Vérifie la signature HMAC"""
     if not HMAC_SECRET:
@@ -49,7 +51,7 @@ def test_render():
     """Test ping Render + latence"""
     start = time.time()
     try:
-        resp = requests.get(f"{RENDER_BACKEND_URL}/status", timeout=5)
+        resp = requests.get(f"{RENDER_BACKEND_URL}/status", timeout35)
         latency = round((time.time() - start) * 1000, 2)
         return jsonify({
             "status": "OK",
