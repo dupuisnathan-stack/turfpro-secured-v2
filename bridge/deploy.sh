@@ -11,13 +11,11 @@ gcloud run deploy ${SERVICE_NAME} \
   --source=. \
   --region=${REGION} \
   --platform=managed \
-  --m512Mi256Mi \
-  --cpu=1 \
+  --memory=512Mi \  --cpu=1 \
   --concurrency=80 \
   --timeout=30s \
   --min-instances=0 \
-  --max-instances200 \
-  --port=8080 \
+  --max-instances=200 \  --port=8080 \
   --service-account=bridge-api-sa@turfo-service.iam.gserviceaccount.com \
   --set-secrets=HMAC_SECRET=bridge-hmac-key:latest \
   --allow-unauthenticated \
