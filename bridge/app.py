@@ -51,7 +51,7 @@ def test_render():
     """Test ping Render + latence"""
     start = time.time()
     try:
-        resp = requests.get(f"{RENDER_BACKEND_URL}/status", timeout35)
+        resp = requests.get(f"{RENDER_BACKEND_URL}/status", timeout=TIMEOUT)
         latency = round((time.time() - start) * 1000, 2)
         return jsonify({
             "status": "OK",
