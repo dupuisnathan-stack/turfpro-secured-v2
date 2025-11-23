@@ -20,12 +20,8 @@ COPY app.py .
 RUN useradd -m -u 1000 bridge && chown -R bridge:bridge /app
 USER bridge
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD python -c "import requests; requests.get('http://localhost:8080/health')"
-
 # Exposition du port
 EXPOSE 8080
 
-# Commande de démarrage avec Gunicorn
-CMD exec gunicorn --bind :$PORT --workers 1 --timeout 15 --graceful-timeout 5 app:app
+# Commande de démarrage avec Gunicorn - OPTIMISÉ pour Cloud Run
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 2 --timeout 30 --graceful-timeout 10 --worker-class gthread --access-logfile - --error-logfile - app:app
