@@ -21,7 +21,7 @@ steps:
       - '--min-instances=0'
       - '--max-instances=20'
       - '--port=8080'
-      # - '--service-account=bridge-api-sa@turfo-service.iam.gserviceaccount.com'
+      - '--service-account=bridge-api-sa@turfo-service.iam.gserviceaccount.com'
       - '--set-secrets=HMAC_SECRET=bridge-hmac-key:latest'
       - '--allow-unauthenticated'
 
