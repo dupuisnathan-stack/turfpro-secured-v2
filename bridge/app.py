@@ -1,16 +1,24 @@
 #!/usr/bin/env python3
 """
-Bridge API Ultra-Léger - TurfPro 2025
-Router HMAC → Render Backend + Endpoints TurfPro
-Version: 1.0.0 - Bridge Minimal Stable
+Bridge API Ultra-Performant - TurfPro 2025
+FastAPI + Uvicorn ASGI → Render Backend + Endpoints TurfPro  
+Version: 2.0.0 - Bridge Minimal Stable FastAPI
 """
+
 import os
 import hmac
 import hashlib
 import time
 import logging
-from flask import Flask, request, jsonify
-import requests
+import asyncio
+from typing import Dict, List, Optional, Any
+
+from fastapi import FastAPI, Request, HTTPException, Query
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from pydantic import BaseModel
+import httpx
 
 # Configuration logging
 logging.basicConfig(
@@ -19,188 +27,211 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
-
-# Configuration Flask
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB max
-app.config['JSON_SORT_KEYS'] = False
-
 # Configuration
 RENDER_BACKEND_URL = os.getenv("RENDER_BACKEND_URL", "https://turfpro-secured-v2-1.onrender.com")
 HMAC_SECRET = os.getenv("HMAC_SECRET", "").encode()
-TIMEOUT = 3  # Timeout pour appels Render
+TIMEOUT = 10.0
+MAX_RETRIES = 2
 
-def verify_hmac(data: str, signature: str) -> bool:
-    """Vérifie la signature HMAC"""
-    if not HMAC_SECRET:
-        logger.warning("HMAC_SECRET non configuré")
-        return False
-    expected = hmac.new(HMAC_SECRET, data.encode(), hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, signature)
+# FastAPI App
+app = FastAPI(
+    title="TurfPro Bridge API",
+    description="Interface FastAPI haute-performance pour workflows TurfPro",
+    version="2.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
 
-# ==================== ENDPOINTS DE BASE ====================
+# Middlewares
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-@app.route('/health', methods=['GET'])
-def health():
-    """Health check Cloud Run"""
+# HTTP Client
+http_client = httpx.AsyncClient(
+    timeout=httpx.Timeout(TIMEOUT),
+    limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
+)
+
+# Models
+class HealthResponse(BaseModel):
+    status: str = "healthy"
+    service: str = "bridge-api-fastapi"
+    version: str = "2.0.0"
+    timestamp: int
+
+class StatusResponse(BaseModel):
+    status: str = "operational"
+    service: str = "bridge-api-fastapi"
+    version: str = "2.0.0"
+    backend: str
+    hmac_configured: bool
+    timestamp: int
+
+# Endpoints de Base
+@app.get("/health", response_model=HealthResponse, tags=["System"])
+async def health():
+    """Health check ultra-rapide"""
     logger.info("Health check appelé")
-    return jsonify({
-        "status": "healthy",
-        "service": "bridge-api-light",
-        "version": "1.0.0",
-        "timestamp": int(time.time())
-    }), 200
+    return HealthResponse(timestamp=int(time.time()))
 
-@app.route('/status', methods=['GET'])
-def status():
-    """Status endpoint pour test-render"""
+@app.get("/status", response_model=StatusResponse, tags=["System"])
+async def status():
+    """Status détaillé du service"""
     logger.info("Status check appelé")
-    return jsonify({
-        "status": "operational",
-        "service": "bridge-api-light",
-        "version": "1.0.0",
-        "backend": RENDER_BACKEND_URL,
-        "hmac_configured": bool(HMAC_SECRET),
-        "timestamp": int(time.time())
-    }), 200
+    return StatusResponse(
+        backend=RENDER_BACKEND_URL,
+        hmac_configured=bool(HMAC_SECRET),
+        timestamp=int(time.time())
+    )
 
-@app.route('/test-basic', methods=['GET'])
-def test_basic():
+@app.get("/test-basic", tags=["System"])
+async def test_basic():
     logger.info("Test basic appelé")
-    return jsonify({"status": "Bridge OK", "service": "bridge-api-light", "backend": RENDER_BACKEND_URL}), 200
+    return {"status": "Bridge OK", "service": "bridge-api-fastapi", "backend": RENDER_BACKEND_URL, "framework": "FastAPI + Uvicorn"}
 
-@app.route('/test-render', methods=['GET'])
-def test_render():
+@app.get("/test-render", tags=["System"])
+async def test_render():
     start = time.time()
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            resp = await http_client.get(f"{RENDER_BACKEND_URL}/status")
+            latency = round((time.time() - start) * 1000, 2)
+            logger.info(f"Test Render réussi - Latence: {latency}ms")
+            return {"status": "OK", "backend_status": resp.status_code, "latency_ms": latency, "hmac_configured": bool(HMAC_SECRET)}
+        except Exception as e:
+            if attempt < MAX_RETRIES:
+                await asyncio.sleep(0.5)
+                continue
+            logger.error(f"Erreur test Render: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/", tags=["System"])
+async def root():
+    return {
+        "service": "Bridge API FastAPI",
+        "version": "2.0.0",
+        "framework": "FastAPI + Uvicorn",
+        "endpoints": ["/health", "/status", "/test-basic", "/test-render", "/engine", "/ingest/min", "/data/collect", "/fastturf/run", "/data/store", "/analysis/psi", "/results/top3", "/openapi.json", "/manifest.json"]
+    }
+
+# Endpoints Ingestion
+@app.post("/ingest/min", tags=["Ingestion"])
+async def ingest_min(request: Request):
     try:
-        resp = requests.get(f"{RENDER_BACKEND_URL}/status", timeout=TIMEOUT)
-        latency = round((time.time() - start) * 1000, 2)
-        logger.info(f"Test Render réussi - Latence: {latency}ms")
-        return jsonify({"status": "OK", "backend_status": resp.status_code, "latency_ms": latency, "hmac_configured": bool(HMAC_SECRET)}), 200
-    except Exception as e:
-        logger.error(f"Erreur test Render: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/engine', methods=['POST'])
-def engine():
-    signature = request.headers.get('X-HMAC-Signature', '')
-    body = request.get_data(as_text=True)
-    if not verify_hmac(body, signature):
-        logger.warning("Signature HMAC invalide")
-        return jsonify({"error": "Invalid HMAC signature"}), 401
-    try:
-        resp = requests.post(f"{RENDER_BACKEND_URL}/engine", json=request.get_json(), headers={'Content-Type': 'application/json'}, timeout=TIMEOUT)
-        logger.info(f"Engine appelé - Status: {resp.status_code}")
-        return jsonify(resp.json()), resp.status_code
-    except Exception as e:
-        logger.error(f"Erreur backend: {str(e)}")
-        return jsonify({"error": f"Backend error: {str(e)}"}), 502
-
-@app.route('/', methods=['GET'])
-def root():
-    return jsonify({"service": "Bridge API Light", "version": "1.0.0", "endpoints": ["/health", "/status", "/test-basic", "/test-render", "/engine", "/ingest/min", "/ingest/full", "/data/collect", "/fastturf/run", "/data/store", "/analysis/psi", "/results/top3", "/openapi.json", "/manifest.json"]}), 200
-
-# ==================== ENDPOINTS INGESTION ====================
-
-@app.route('/ingest/min', methods=['POST'])
-def ingest_min():
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
+        data = await request.json()
         records = data.get("records", [])
         logger.info(f"Ingest minimal - {len(records)} records")
-        return jsonify({"status": "ingested", "mode": "minimal", "records": len(records), "timestamp": int(time.time())}), 200
+        return {"status": "ingested", "mode": "minimal", "records": len(records), "timestamp": int(time.time())}
     except Exception as e:
         logger.error(f"Erreur ingest/min: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.route('/ingest/full', methods=['POST'])
-def ingest_full():
+# Pipeline TurfPro ARC1-ARC5
+@app.post("/data/collect", tags=["TurfPro Pipeline"])
+async def data_collect(request: Request):
     try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
-        records = data.get("records", [])
-        metadata = data.get("metadata", {})
-        logger.info(f"Ingest full - {len(records)} records")
-        return jsonify({"status": "ingested", "mode": "full", "records": len(records), "metadata": metadata, "timestamp": int(time.time())}), 200
-    except Exception as e:
-        logger.error(f"Erreur ingest/full: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
-# ==================== PIPELINE TURFPRO (ARC1-ARC5) ====================
-
-@app.route('/data/collect', methods=['POST'])
-def data_collect():
-    try:
-        data = request.get_json()
+        data = await request.json()
         source = data.get("source", "unknown")
         records = data.get("records", [])
         logger.info(f"ARC1 Data Collect - Source: {source}, Records: {len(records)}")
-        return jsonify({"arc": "ARC1", "status": "collected", "source": source, "records_count": len(records), "timestamp": int(time.time())}), 200
+        return {"arc": "ARC1", "status": "collected", "source": source, "records_count": len(records), "timestamp": int(time.time())}
     except Exception as e:
         logger.error(f"Erreur ARC1: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.route('/fastturf/run', methods=['POST'])
-def fastturf_run():
+@app.post("/fastturf/run", tags=["TurfPro Pipeline"])
+async def fastturf_run(request: Request):
     try:
-        data = request.get_json()
+        data = await request.json()
         race_id = data.get("race_id", "unknown")
         logger.info(f"ARC2 FastTurf Run - Race: {race_id}")
-        result = {"arc": "ARC2", "status": "computed", "race_id": race_id, "engine": "fastturf", "execution_time_ms": 150, "predictions": [{"position": 1, "horse": "Example-1", "confidence": 0.85}, {"position": 2, "horse": "Example-2", "confidence": 0.72}, {"position": 3, "horse": "Example-3", "confidence": 0.68}], "timestamp": int(time.time())}
-        return jsonify(result), 200
+        return {
+            "arc": "ARC2",
+            "status": "computed",
+            "race_id": race_id,
+            "engine": "fastturf",
+            "execution_time_ms": 150,
+            "predictions": [
+                {"position": 1, "horse": "Example-1", "confidence": 0.85},
+                {"position": 2, "horse": "Example-2", "confidence": 0.72},
+                {"position": 3, "horse": "Example-3", "confidence": 0.68}
+            ],
+            "timestamp": int(time.time())
+        }
     except Exception as e:
         logger.error(f"Erreur ARC2: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.route('/data/store', methods=['POST'])
-def data_store():
+@app.post("/data/store", tags=["TurfPro Pipeline"])
+async def data_store(request: Request):
     try:
-        data = request.get_json()
+        data = await request.json()
         dataset = data.get("dataset", "unknown")
         records = data.get("records", [])
         logger.info(f"ARC3 Data Store - Dataset: {dataset}, Records: {len(records)}")
-        return jsonify({"arc": "ARC3", "status": "stored", "dataset": dataset, "records_stored": len(records), "storage": "cloud-storage", "timestamp": int(time.time())}), 200
+        return {"arc": "ARC3", "status": "stored", "dataset": dataset, "records_stored": len(records), "storage": "cloud-storage", "timestamp": int(time.time())}
     except Exception as e:
         logger.error(f"Erreur ARC3: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.route('/analysis/psi', methods=['POST'])
-def analysis_psi():
+@app.post("/analysis/psi", tags=["TurfPro Pipeline"])
+async def analysis_psi(request: Request):
     try:
-        data = request.get_json()
+        data = await request.json()
         analysis_type = data.get("type", "psi")
         logger.info(f"ARC4 Analysis PSI - Type: {analysis_type}")
-        result = {"arc": "ARC4", "status": "analyzed", "analysis_type": analysis_type, "model": "deep-learning-psi-v2", "insights": {"trend": "positive", "risk_level": "medium", "confidence": 0.78, "key_factors": ["form", "track_condition", "jockey_experience"]}, "timestamp": int(time.time())}
-        return jsonify(result), 200
+        return {
+            "arc": "ARC4",
+            "status": "analyzed",
+            "analysis_type": analysis_type,
+            "model": "deep-learning-psi-v2",
+            "insights": {"trend": "positive", "risk_level": "medium", "confidence": 0.78, "key_factors": ["form", "track_condition", "jockey_experience"]},
+            "timestamp": int(time.time())
+        }
     except Exception as e:
         logger.error(f"Erreur ARC4: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.route('/results/top3', methods=['GET'])
-def results_top3():
+@app.get("/results/top3", tags=["TurfPro Pipeline"])
+async def results_top3(race_id: str = Query("latest")):
     try:
-        race_id = request.args.get('race_id', 'latest')
         logger.info(f"ARC5 Results Top3 - Race: {race_id}")
-        result = {"arc": "ARC5", "status": "success", "race_id": race_id, "top3": [{"position": 1, "horse": "Champion-Star", "number": 7, "jockey": "J. Smith", "odds": "3/1", "confidence": 0.89}, {"position": 2, "horse": "Thunder-Bolt", "number": 3, "jockey": "M. Johnson", "odds": "5/1", "confidence": 0.82}, {"position": 3, "horse": "Swift-Runner", "number": 12, "jockey": "A. Davis", "odds": "7/1", "confidence": 0.76}], "timestamp": int(time.time())}
-        return jsonify(result), 200
+        return {
+            "arc": "ARC5",
+            "status": "success",
+            "race_id": race_id,
+            "top3": [
+                {"position": 1, "horse": "Champion-Star", "number": 7, "jockey": "J. Smith", "odds": "3/1", "confidence": 0.89},
+                {"position": 2, "horse": "Thunder-Bolt", "number": 3, "jockey": "M. Johnson", "odds": "5/1", "confidence": 0.82},
+                {"position": 3, "horse": "Swift-Runner", "number": 12, "jockey": "A. Davis", "odds": "7/1", "confidence": 0.76}
+            ],
+            "timestamp": int(time.time())
+        }
     except Exception as e:
         logger.error(f"Erreur ARC5: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-# ==================== OPENAPI & MANIFEST ====================
+# OpenAPI & Manifest
+@app.get("/openapi.json", include_in_schema=False)
+async def openapi():
+    return app.openapi()
 
-@app.route('/openapi.json', methods=['GET'])
-def openapi():
-    return jsonify({"openapi": "3.1.0", "info": {"title": "TurfPro Bridge API", "version": "1.0.0", "description": "Interface OpenAPI pour workflows TurfPro via Cloud Run + Render"}, "servers": [{"url": "https://bridge-api-49503293887.europe-west1.run.app", "description": "Production"}], "paths": {"/health": {"get": {"summary": "Health Check", "operationId": "healthCheck", "responses": {"200": {"description": "OK"}}}}, "/status": {"get": {"summary": "Status Check", "operationId": "statusCheck", "responses": {"200": {"description": "OK"}}}}, "/test-basic": {"get": {"summary": "Test Bridge", "operationId": "testBasic", "responses": {"200": {"description": "OK"}}}}, "/test-render": {"get": {"summary": "Test Render + Circuit Breaker", "operationId": "testRender", "responses": {"200": {"description": "OK"}, "500": {"description": "Error"}}}}, "/engine": {"post": {"summary": "Execute Workflow (HMAC)", "operationId": "executeEngine", "security": [{"hmacAuth": []}], "requestBody": {"required": True, "content": {"application/json": {"schema": {"type": "object"}}}}, "responses": {"200": {"description": "Success"}, "401": {"description": "Invalid HMAC"}, "502": {"description": "Backend Error"}}}}, "/ingest/min": {"post": {"summary": "Ingest Minimal", "operationId": "ingestMin", "responses": {"200": {"description": "OK"}}}}, "/ingest/full": {"post": {"summary": "Ingest Full", "operationId": "ingestFull", "responses": {"200": {"description": "OK"}}}}}, "components": {"securitySchemes": {"hmacAuth": {"type": "apiKey", "in": "header", "name": "X-HMAC-Signature"}}}}), 200
-
-@app.route('/manifest.json', methods=['GET'])
-def manifest():
-    return jsonify({"schema_version": "v1", "name_for_human": "TurfPro Bridge Controller", "name_for_model": "turfpro_bridge", "description_for_human": "Contrôle infrastructure TurfPro (Cloud Run, Render, GCP) via workflows JSON automatiques", "description_for_model": "API pour workflows JSON TurfPro: déploiement, monitoring, correction auto. HMAC sur /engine.", "auth": {"type": "none"}, "api": {"type": "openapi", "url": "https://bridge-api-49503293887.europe-west1.run.app/openapi.json"}, "logo_url": "https://raw.githubusercontent.com/dupuisnathan-stack/turfpro-secured-v2/main/logo.png", "contact_email": "dupuis.nathan@gmail.com", "legal_info_url": "https://github.com/dupuisnathan-stack/turfpro-secured-v2"}), 200
-
-if __name__ == '__main__':
-    port = int(os.getenv('PORT', 8080))
-    logger.info(f"Démarrage Bridge API sur port {port}")
-    app.run(host='0.0.0.0', port=port)
+@app.get("/manifest.json", tags=["System"])
+async def manifest():
+    return {
+        "schema_version": "v1",
+        "name_for_human": "TurfPro Bridge Controller",
+        "name_for_model": "turfpro_bridge",
+        "description_for_human": "Contrôle infrastructure TurfPro via workflows JSON automatiques",
+        "description_for_model": "API FastAPI pour workflows TurfPro: déploiement, monitoring, correction auto",
+        "auth": {"type": "none"},
+        "api": {"type": "openapi", "url": "https://bridge-api-49503293887.europe-west1.run.app/openapi.json"},
+        "logo_url": "https://raw.githubusercontent.com/dupuisnathan-stack/turfpro-secured-v2/main/logo.png",
+        "contact_email": "dupuis.nathan@gmail.com"
+    }
