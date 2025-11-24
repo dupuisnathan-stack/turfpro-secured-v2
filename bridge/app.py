@@ -5,6 +5,16 @@ FastAPI + Uvicorn ASGI → Render Backend + Endpoints TurfPro
 Version: 2.0.0 - Bridge Minimal Stable FastAPI
 """
 
+
+# ========== DEBUG STARTUP LOGGING ==========
+import sys
+print(f"[DEBUG] Python version: {sys.version}")
+print(f"[DEBUG] Python executable: {sys.executable}")
+import os
+print(f"[DEBUG] Current working directory: {os.getcwd()}")
+print(f"[DEBUG] sys.path: {sys.path}")
+print("[DEBUG] Starting Bridge API initialization...")
+
 import os
 import hmac
 import hashlib
@@ -41,6 +51,14 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# Debug: List all registered routes
+print(f"[DEBUG] FastAPI app created: {app}")
+print(f"[DEBUG] App title: {app.title}")
+print("[DEBUG] Registered routes:")
+for route in app.routes:
+    print(f"  - {route.path} [{getattr(route, 'methods', 'N/A')}]")
+
 
 # Middlewares
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -235,3 +253,11 @@ async def manifest():
         "logo_url": "https://raw.githubusercontent.com/dupuisnathan-stack/turfpro-secured-v2/main/logo.png",
         "contact_email": "dupuis.nathan@gmail.com"
     }
+
+# Final debug: Confirm module loaded
+print("[DEBUG] ========================================")
+print(f"[DEBUG] app.py module loaded successfully")
+print(f"[DEBUG] Total routes registered: {len(app.routes)}")
+for route in app.routes:
+    print(f"[DEBUG]   -> {route.path}")
+print("[DEBUG] ========================================")
