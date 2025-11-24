@@ -23,5 +23,5 @@ USER bridge
 # Exposition du port
 EXPOSE 8080
 
-# Commande de démarrage avec Gunicorn - OPTIMISÉ pour Cloud Run
-CMD exec gunicorn --bind :$PORT --workers 1 --threads 2 --timeout 30 --graceful-timeout 10 --worker-class gthread --access-logfile - --error-logfile - app:app
+# Commande de démarrage avec Uvicorn (ASGI) - OPTIMISÉ pour Cloud Run
+CMD exec uvicorn app:app --host 0.0.0.0 --port $PORT --workers 1 --loop uvloop --http httptools --timeout-keep-alive 30 --no-access-log
