@@ -25,3 +25,5 @@ EXPOSE 8080
 
 # Commande de démarrage avec Uvicorn (ASGI) - OPTIMISÉ pour Cloud Run
 CMD exec uvicorn app:app --host 0.0.0.0 --port $PORT --workers 1 --loop uvloop --http httptools --timeout-keep-alive 30 --no-access-log
+
+# Force rebuild - FastAPI v2.0.1
