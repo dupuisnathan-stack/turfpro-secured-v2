@@ -14,8 +14,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copie du code
-COPY app.py .
-
+COPY . .
 # Utilisateur non-root
 RUN useradd -m -u 1000 bridge && chown -R bridge:bridge /app
 USER bridge
@@ -24,6 +23,5 @@ USER bridge
 EXPOSE 8080
 
 # Commande de démarrage avec Uvicorn (ASGI) - OPTIMISÉ pour Cloud Run
-CMD uvicorn app:app --host 0.0.0.0 --port $PORT
-
+CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
 # Force rebuild - FastAPI v2.0.1
