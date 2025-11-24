@@ -18,7 +18,8 @@ steps:
       - '--cpu=1'
       - '--concurrency=80'
       - '--timeout=30s'
-      - '--min-instances=1'      - '--ingress=all'
+      - '--min-instances=1
+      - '--ingress=all'
       - '--max-instances=20'
       - '--port=8080'
       - '--service-account=bridge-api-sa@turfo-service.iam.gserviceaccount.com'
