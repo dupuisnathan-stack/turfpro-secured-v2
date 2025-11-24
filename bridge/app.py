@@ -60,6 +60,15 @@ for route in app.routes:
     print(f"  - {route.path} [{getattr(route, 'methods', 'N/A')}]")
 
 
+
+# Root diagnostic endpoint
+@app.get("/")
+async def root():
+    return {
+        "status": "operational",
+        "routes_count": len(app.routes),
+        "routes": [r.path for r in app.routes]
+    }
 # Middlewares
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
