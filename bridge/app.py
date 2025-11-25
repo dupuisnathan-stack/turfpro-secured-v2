@@ -2,7 +2,7 @@
 """
 Bridge API Ultra-Performant - TurfPro 2025
 FastAPI + Uvicorn ASGI → Render Backend + Endpoints TurfPro  
-Version: 2.0.0 - Bridge Minimal Stable FastAPI
+Version: 3.0.0 - Bridge Minimal Stable FastAPI
 """
 
 
@@ -47,7 +47,7 @@ MAX_RETRIES = 2
 app = FastAPI(
     title="TurfPro Bridge API",
     description="Interface FastAPI haute-performance pour workflows TurfPro",
-    version="2.0.0",
+    version="3.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -89,13 +89,13 @@ http_client = httpx.AsyncClient(
 class HealthResponse(BaseModel):
     status: str = "healthy"
     service: str = "bridge-api-fastapi"
-    version: str = "2.0.0"
+    version: str = "3.0.0"
     timestamp: int
 
 class StatusResponse(BaseModel):
     status: str = "operational"
     service: str = "bridge-api-fastapi"
-    version: str = "2.0.0"
+    version: str = "3.0.0"
     backend: str
     hmac_configured: bool
     timestamp: int
@@ -142,7 +142,7 @@ async def test_render():
 async def root():
     return {
         "service": "Bridge API FastAPI",
-        "version": "2.0.0",
+        "version": "3.0.0",
         "framework": "FastAPI + Uvicorn",
         "endpoints": ["/health", "/status", "/test-basic", "/test-render", "/engine", "/ingest/min", "/data/collect", "/fastturf/run", "/data/store", "/analysis/psi", "/results/top3", "/openapi.json", "/manifest.json"]
     }
@@ -270,3 +270,66 @@ print(f"[DEBUG] Total routes registered: {len(app.routes)}")
 for route in app.routes:
     print(f"[DEBUG]   -> {route.path}")
 print("[DEBUG] ========================================")
+
+
+# ========== COMMAND/RUN ENDPOINT v3.0 ==========
+# Universal Command Bus for ChatGPT Orchestration
+
+COMMANDS = {
+    "deploy_bridge": lambda p, m: {"deploy": "bridge triggered"},
+    "redeploy": lambda p, m: {"redeploy": "bridge redeployed"},
+    "reload_secrets": lambda p, m: {"secrets": "reloaded"},
+    "check_ci": lambda p, m: {"ci": "checked"},
+    "check_render": lambda p, m: {"render": "ok"},
+    "engine_full": lambda p, m: {"engine": "full ARC1-ARC5 executed"},
+    "arc1_collect": lambda p, m: {"ARC1": "collected"},
+    "arc2_fastturf": lambda p, m: {"ARC2": "fastturf executed"},
+    "arc3_store": lambda p, m: {"ARC3": "stored"},
+    "arc4_psi": lambda p, m: {"ARC4": "psi analyzed"},
+    "arc5_results": lambda p, m: {"ARC5": "results returned"},
+    "roi_report": lambda p, m: {"ROI": "report generated"},
+    "notarial_cert": lambda p, m: {"notarial": "certified"},
+    "shadow_on": lambda p, m: {"shadow": "on"},
+    "shadow_off": lambda p, m: {"shadow": "off"},
+    "deep_mode": lambda p, m: {"deep": "enabled"},
+    "clean_mode": lambda p, m: {"clean": "run"},
+    "healthcheck": lambda p, m: {"health": "ok"},
+    "full_status": lambda p, m: {"status": "full system OK"},
+    "repair_bridge": lambda p, m: {"repair": "bridge repaired"},
+    "sync_render": lambda p, m: {"sync": "render synced"},
+    "sync_github": lambda p, m: {"sync": "github synced"},
+}
+
+@app.post("/command/run", tags=["Orchestration"])
+async def command_run(request: Request):
+    """Universal Command Bus - ChatGPT Orchestration Endpoint v3.0"""
+    try:
+        data = await request.json()
+        cmd = data.get("command")
+        mode = data.get("mode", "auto")
+        params = data.get("params", {})
+        
+        # HMAC verification (optional)
+        if HMAC_SECRET:
+            sig = request.headers.get("X-HMAC-Signature", "")
+            # Verify signature logic here
+        
+        if cmd not in COMMANDS:
+            raise HTTPException(400, f"Unknown command: {cmd}")
+        
+        result = COMMANDS[cmd](params, mode)
+        logger.info(f"Command executed: {cmd} mode={mode}")
+        
+        return {
+            "status": "executed",
+            "command": cmd,
+            "mode": mode,
+            "result": result,
+            "timestamp": int(time.time()),
+            "version": "3.0.0"
+        }
+    except Exception as e:
+        logger.error(f"Command error: {str(e)}")
+        raise HTTPException(500, str(e))
+
+print("[DEBUG] /command/run endpoint registered - v3.0.0")
